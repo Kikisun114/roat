@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>奇幻灵根测试与社交系统</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Microsoft YaHei", sans-serif;
+            background: url('https://files.metaso.cn/api/public-file/download?fileName=thumbnail/d4b5b9c5c594cf39b34018bb276062e0.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: #fff;
+            text-align: center;
+            overflow-x: hidden;
+        }
+        .overlay {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 15px;
+            display: inline-block;
+            margin-top: 40px;
+        }
+        .nav {
+            margin: 20px;
+        }
+        .nav button {
+            padding: 15px 30px;
+            margin: 0 10px;
+            font-size: 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            color: #fff;
+            background: #0984e3;
+        }
+        .nav button:hover { transform: scale(1.1); }
+        .section { display: none; padding: 20px; }
+        .section.active { display: block; }
+        input, select, button {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+        }
+        button { cursor: pointer; background: #6c5ce7; color: #fff; }
+        #testResult { margin-top: 20px; font-size: 24px; }
+        #animationContainer { 
+            margin-top: 20px; 
+            font-size: 24px; 
+            height: 150px;
+            overflow: hidden;
+            color: gold;
+        }
+        #friendList { margin-top: 20px; }
+        #friendList p { background: rgba(255,255,255,0.1); padding: 5px; border-radius: 5px; }
+        .fade { animation: fadeEffect 15s forwards; }
+        @keyframes fadeEffect {
+            0% { filter: blur(8px); opacity: 0.2; }
+            50% { filter: blur(4px); opacity: 0.5; }
+            100% { filter: blur(0px); opacity: 1; }
+        }
+        /* 登录弹窗样式 */
+        #loginModal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+        #loginBox {
+            background: #2d3436;
+            padding: 30px;
+            border-radius: 15px;
+            width: 300px;
+        }
+        #loginBox h2 { margin-bottom: 20px; }
+        #loginBox button { width: 100%; margin-top: 10px; }
+        #loginBox .toggle { cursor: pointer; color: #74b9ff; margin-top: 10px; display: block; }
+        #welcomeMsg { margin-top: 20px; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <!-- 登录弹窗 -->
+    <div id="loginModal">
+        <div id="loginBox">
+            <h2 id="modalTitle">登录</h2>
+            <input type="text" id="loginName" placeholder="输入姓名">
+            <input type="password" id="loginPass" placeholder="输入密码">
+            <button onclick="login()">登录</button>
+            <span class="toggle" onclick="toggleRegister()">没有账号？点击注册</span>
+        </div>
+    </div>
+
+    <div class="overlay">
+        <h1>奇幻灵根之旅</h1>
+        <div id="welcomeMsg"></div>
+        <div class="nav">
+            <button onclick="showSection('register')">注册</button>
+            <button onclick="showSection('test')">测试灵根</button>
+            <button onclick="showSection('addFriend')">加好友</button>
+        </div>
+
+        <!-- 注册页面 -->
+        <section id="register" class="section">
+            <h2>玩家注册</h2>
+            <input type="text" id="name" placeholder="输入姓名">
+            <select id="gender"><option value="男">男</option><option value="女">女</option></select>
+            <input type="text" id="alias" placeholder="自定义代号（如Kiki）">
+            <input type="password" id="regPass" placeholder="设置密码">
+            <br>
+            <button onclick="register()">注册</button>
+            <p id="registerInfo"></p>
+        </section>
+
+        <!-- 灵根测试页面 -->
+        <section id="test" class="section">
+            <h2>灵根觉醒仪式</h2>
+            <p id="testInfo">请先注册后开始测试。</p>
+            <button id="startTestBtn" onclick="startTest()" disabled>开始测试</button>
+            <div id="animationContainer"></div>
+            <div id="testResult"></div>
+        </section>
+
+        <!-- 加好友页面 -->
+        <section id="addFriend" class="section">
+            <h2>寻找你的道友</h2>
+            <input type="text" id="friendCode" placeholder="输入14位身份代码">
+            <button onclick="addFriend()">添加好友</button>
+            <div id="friendList"></div>
+        </section>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentUser = null;
+        const users = JSON.parse(localStorage.getItem('users') || '{}');
+        const friends = JSON.parse(localStorage.getItem('friends') || '{}');
+
+        // 页面加载后弹出登录框
+        window.onload = function() {
+            document.getElementById('loginModal').style.display = 'flex';
+        };
+
+        // 切换登录/注册视图
+        function toggleRegister() {
+            const isLogin = document.getElementById('modalTitle').innerText === '登录';
+            document.getElementById('modalTitle').innerText = isLogin ? '注册' : '登录';
+            document.getElementById('loginName').placeholder = isLogin ? '输入代号' : '输入姓名';
+            document.getElementById('loginPass').placeholder = isLogin ? '输入密码' : '设置密码';
+            document.getElementById('loginPass').value = '';
+            document.querySelector('#loginBox button').innerText = isLogin ? '注册' : '登录';
+            document.querySelector('#loginBox .toggle').innerText = isLogin ? '已有账号？点击登录' : '没有账号？点击注册';
+        }
+
+        // 登录功能
+        function login() {
+            const name = document.getElementById('loginName').value.trim();
+            const pass = document.getElementById('loginPass').value;
+            const isLogin = document.getElementById('modalTitle').innerText === '登录';
+
+            if (!isLogin) {
+                // 注册流程
+                if (!name || !pass) { alert('请填写完整信息'); return; }
+                // 检查是否已有相同姓名和密码的账号
+                const existingUser = Object.values(users).find(u => u.name === name && u.password === pass);
+                if (existingUser) {
+                    alert('此账号已存在，请直接登录');
+                    return;
+                }
+                // 自动生成ID和代号
+                const idCode = Array.from({length: 14}, () => Math.floor(Math.random() * 10)).join('');
+                const alias = name; // 直接使用姓名作为代号
+                const newUser = { name, gender: '男', alias, password: pass, idCode };
+                users[idCode] = newUser;
+                localStorage.setItem('users', JSON.stringify(users));
+                alert('注册成功，请登录！');
+                toggleRegister();
+                return;
+            }
+
+            // 登录验证
+            const user = Object.values(users).find(u => u.name === name && u.password === pass);
+            if (user) {
+                currentUser = user;
+                document.getElementById('welcomeMsg').innerText = `欢迎回家，${user.alias}！`;
+                document.getElementById('loginModal').style.display = 'none';
+                document.getElementById('testInfo').innerText = `${user.alias}，准备好觉醒了吗？`;
+                document.getElementById('startTestBtn').disabled = false;
+                showSection('register'); // 默认显示注册页（可自行修改默认页）
+            } else {
+                alert('账号或密码错误！');
+            }
+        }
+
+        function showSection(sectionId) {
+            if (!currentUser) {
+                alert('请先登录！');
+                return;
+            }
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        // 注册功能（在登录后仍可访问以修改信息）
+        function register() {
+            if (!currentUser) return;
+            const name = document.getElementById('name').value.trim();
+            const gender = document.getElementById('gender').value;
+            const alias = document.getElementById('alias').value.trim();
+            const pass = document.getElementById('regPass').value;
+
+            if (!name || !alias || !pass) {
+                alert('请完整填写信息！');
+                return;
+            }
+
+            // 更新当前用户信息
+            currentUser.name = name;
+            currentUser.gender = gender;
+            currentUser.alias = alias;
+            currentUser.password = pass;
+            users[currentUser.idCode] = currentUser;
+            localStorage.setItem('users', JSON.stringify(users));
+
+            document.getElementById('registerInfo').innerHTML = `
+                注册/信息更新成功！<br>
+                代号：${alias}<br>
+                身份代码：<strong>${currentUser.idCode}</strong>
+            `;
+            document.getElementById('welcomeMsg').innerText = `欢迎回家，${currentUser.alias}！`;
+        }
+
+        // 灵根测试特效
+        function startTest() {
+            document.getElementById('animationContainer').innerHTML = '';
+            document.getElementById('testResult').innerHTML = '';
+            document.getElementById('startTestBtn').disabled = true;
+
+            const colors = ['gold', 'deepskyblue', 'hotpink', 'white'];
+            let count = 0;
+            const interval = setInterval(() => {
+                const randomText = Math.random().toString(36).substring(2, 12).toUpperCase();
+                const color = colors[count % colors.length];
+                const p = document.createElement('p');
+                p.style.color = color;
+                p.innerText = randomText;
+                document.getElementById('animationContainer').appendChild(p);
+                count++;
+                if (count > 30) clearInterval(interval);
+            }, 200);
+
+            // 15秒后显示结果
+            setTimeout(() => {
+                document.getElementById('animationContainer').classList.add('fade');
+                const level = Math.floor(Math.random() * 11); // 0-10
+                let grade = '';
+                if (level <= 3) grade = '普通灵根';
+                else if (level <= 6) grade = '中等灵根';
+                else if (level <= 8) grade = '上等灵根';
+                else grade = '顶级灵根';
+
+                document.getElementById('testResult').innerHTML = `
+                    ${currentUser.alias}，你的灵根为 <strong>${level}品</strong>，${grade}。
+                `;
+                document.getElementById('startTestBtn').disabled = false;
+            }, 15000);
+        }
+
+        // 加好友功能
+        function addFriend() {
+            if (!currentUser) return;
+            const code = document.getElementById('friendCode').value.trim();
+            const friend = users[code];
+            if (!friend) {
+                alert('未找到对应的玩家！');
+                return;
+            }
+            if (!friends[currentUser.idCode]) friends[currentUser.idCode] = [];
+            if (!friends[currentUser.idCode].includes(code)) {
+                friends[currentUser.idCode].push(code);
+                localStorage.setItem('friends', JSON.stringify(friends));
+                alert(`已添加好友：${friend.alias}`);
+            }
+            displayFriends();
+        }
+
+        function displayFriends() {
+            if (!currentUser) return;
+            const list = friends[currentUser.idCode] || [];
+            const container = document.getElementById('friendList');
+            container.innerHTML = '<h3>我的好友：</h3>';
+            list.forEach(code => {
+                const f = users[code];
+                const p = document.createElement('p');
+                p.innerText = `${f.alias}（${f.idCode}）`;
+                container.appendChild(p);
+            });
+        }
+    </script>
+</body>
+</html>
